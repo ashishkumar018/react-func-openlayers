@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 
 // openlayers
+import KML from 'ol/format/KML'
 import Map from 'ol/Map'
 import View from 'ol/View'
 import TileLayer from 'ol/layer/Tile'
@@ -31,7 +32,10 @@ function MapWrapper(props) {
 
     // create and add vector source layer
     const initalFeaturesLayer = new VectorLayer({
-      source: new VectorSource()
+      source: new VectorSource({
+        url: '.../data/kml/2012-02-10.kml',
+        format: new KML(),
+      })
     })
 
     // create map
@@ -42,30 +46,41 @@ function MapWrapper(props) {
         // USGS Topo
         new TileLayer({
           source: new XYZ({
-            url: 'https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}',
+            url: 'https://api.maptiler.com/tiles/satellite-v2/{z}/{x}/{y}.jpg?key=2KEto51zpti720ZQd9Kb',
           })
         }),
 
         // Google Maps Terrain
-        /* new TileLayer({
-          source: new XYZ({
-            url: 'http://mt0.google.com/vt/lyrs=p&hl=en&x={x}&y={y}&z={z}',
-          })
-        }), */
+        // new TileLayer({
+        //   source: new XYZ({
+        //     url: 'http://mt0.google.com/vt/lyrs=p&hl=en&x={x}&y={y}&z={z}',
+        //   })
+        // }), 
 
         initalFeaturesLayer
         
       ],
       view: new View({
         projection: 'EPSG:3857',
-        center: [0, 0],
-        zoom: 2
+        center: [876970.8463461736, 5859807.853963373],
+        zoom: 10
       }),
       controls: []
     })
 
     // set map onclick handler
     initialMap.on('click', handleMapClick)
+  
+
+    // set map pointer move handler
+    initialMap.on('pointermove', function (evt) {
+      if (evt.dragging) {
+        return;
+      }
+      const pixel = mapRef.current.getEventPixel(evt.originalEvent);
+      displayFeatureInfo(pixel);
+    });
+
 
     // save map and vector layer references to state
     setMap(initialMap)
@@ -108,16 +123,40 @@ function MapWrapper(props) {
     setSelectedCoord( transormedCoord )
     
   }
+  
+
+
+  // map pointermove handler
+  const displayFeatureInfo = function (pixel) {
+    const features = [];
+    mapRef.current.forEachFeatureAtPixel(pixel, function (feature) {
+      features.push(feature);
+    });
+    if (features.length > 0) {
+      const info = [];
+      let i, ii;
+      for (i = 0, ii = features.length; i < ii; ++i) {
+        info.push(features[i].get('name'));
+      }
+      document.getElementById('info').innerHTML = info.join(', ') || '(unknown)';
+      mapRef.current.getTarget().style.cursor = 'pointer';
+    } else {
+      document.getElementById('info').innerHTML = '&nbsp;';
+      mapRef.current.getTarget().style.cursor = '';
+    }
+  };
 
   // render component
   return (      
-    <div>
+    <div height="50px">
       
-      <div ref={mapElement} className="map-container"></div>
+      <div  height="50px" ref={mapElement} className="map-container"></div>
       
       <div className="clicked-coord-label">
         <p>{ (selectedCoord) ? toStringXY(selectedCoord, 5) : '' }</p>
       </div>
+
+      <div id="info">&nbsp;</div>
 
     </div>
   ) 
